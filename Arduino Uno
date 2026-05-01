@@ -1,0 +1,47 @@
+#include <Servo.h>
+#include <SoftwareSerial.h>
+
+// ESP32からの通信受け取りピンを「D8」に変更（D9は送信用として設定しますが今回は使いません）
+SoftwareSerial ESP_Serial(8, 9); 
+
+Servo servos[6];
+// サーボを繋ぐUnoのピンを 2〜7 に変更
+int servoPins[6] = {2, 3, 4, 5, 6, 7};
+
+void setup() {
+  Serial.begin(115200);      // PC確認用
+  ESP_Serial.begin(9600);    // ESP32との通信用
+
+  for(int i=0; i<6; i++) {
+    servos[i].attach(servoPins[i]);
+    servos[i].write(90); // 初期位置（90度）
+  }
+  Serial.println("Uno is ready. (Pins 2-7 for Servos, Pin 8 for ESP32)");
+}
+
+void loop() {
+  // ESP32から「M0:120」のようなデータが送られてきたら読み取る
+  if (ESP_Serial.available() > 0) {
+    String data = ESP_Serial.readStringUntil('\n');
+    data.trim();
+    
+    if (data.startsWith("M")) {
+      int separatorIndex = data.indexOf(':');
+      if (separatorIndex != -1) {
+        int id = data.substring(1, separatorIndex).toInt();
+        int val = data.substring(separatorIndex + 1).toInt();
+        
+        // idが0〜5（Motor 1〜6に相当）の範囲ならサーボを動かす
+        if (id >= 0 && id < 6) {
+          servos[id].write(val);
+          Serial.print("Moved Motor ");
+          Serial.print(id + 1);
+          Serial.print(" (Pin ");
+          Serial.print(servoPins[id]);
+          Serial.print(") to ");
+          Serial.println(val);
+        }
+      }
+    }
+  }
+}
